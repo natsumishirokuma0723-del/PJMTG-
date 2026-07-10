@@ -1,5 +1,7 @@
 /**
  * スプレッドシートのカスタムメニュー、および定期実行トリガーの一括設定。
+ * 「⏱ 活動タイマー」メニュー(ActivityTimer.gs)もここから合わせて構築する
+ * (1プロジェクト内で onOpen は1つしか定義できないため)。
  */
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -15,6 +17,8 @@ function onOpen() {
     .addSeparator()
     .addItem('一連の処理を今すぐ全部実行', 'runFullPipeline')
     .addToUi();
+
+  buildActivityTimerMenu_();
 }
 
 /**
