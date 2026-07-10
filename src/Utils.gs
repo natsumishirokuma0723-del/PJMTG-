@@ -46,23 +46,34 @@ function getConfig(key) {
 }
 
 /**
- * Chatのユーザーリソース名(users/xxxxx)からメールアドレスを解決する。
- * Chat API / Meet API はプライバシー上メールアドレスを直接返さないため、
+ * Chat / Meet のユーザーリソース名(users/xxxxx)からメールアドレス・氏名を解決する。
+ * Chat API / Meet API はプライバシー上メールアドレスや氏名を直接返さないため、
  * 「ユーザーID対応表」シートでの手動マッピングを正としている。
- * 未登録のIDが出てきた場合は自動で行を追加するので、管理者はメール欄を埋めるだけでよい。
+ * 未登録のIDが出てきた場合は自動で行を追加するので、管理者は
+ * メールアドレス・氏名(活動タイマー用)の欄を埋めるだけでよい。
  */
 function resolveUserEmail(userResourceName) {
-  if (!userResourceName) return '';
+  return _findOrCreateUserMapRow(userResourceName)[1] || '';
+}
+
+/**
+ * ユーザーリソース名(users/xxxxx)から、活動タイマー側のメンバー氏名を解決する。
+ * 「ユーザーID対応表」シートの「氏名(活動タイマー用)」列を参照する。
+ */
+function resolveMemberName(userResourceName) {
+  return _findOrCreateUserMapRow(userResourceName)[2] || '';
+}
+
+function _findOrCreateUserMapRow(userResourceName) {
+  if (!userResourceName) return ['', '', ''];
   const sheet = getSheet(SHEET_NAMES.USER_MAP);
   const data = sheet.getDataRange().getValues();
 
   for (let r = 1; r < data.length; r++) {
-    if (data[r][0] === userResourceName) {
-      return data[r][1] || '';
-    }
+    if (data[r][0] === userResourceName) return data[r];
   }
 
-  // 未登録IDは追記しておく(メール欄は空のまま。管理者が後で埋める)
-  sheet.appendRow([userResourceName, '']);
-  return '';
+  // 未登録IDは追記しておく(メール・氏名欄は空のまま。管理者が後で埋める)
+  sheet.appendRow([userResourceName, '', '']);
+  return [userResourceName, '', ''];
 }

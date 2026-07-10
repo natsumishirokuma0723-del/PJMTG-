@@ -71,12 +71,14 @@ function getTranscriptUrl(conferenceRecordName) {
 }
 
 /**
- * conferenceRecord 配下の実参加者一覧を取得する。
+ * conferenceRecord 配下の実参加者一覧を、入室〜退室時刻つきで取得する。
  * カレンダーの出欠(RSVP)ではなく、実際にMeetに入室した人を表す。
- * signedinUser.user はユーザーリソース名(users/xxx)なので、
- * resolveUserEmail() でメールアドレスに変換する。
+ * signedinUser.user はユーザーリソース名(users/xxx)なので、呼び出し側で
+ * resolveUserEmail() / resolveMemberName() に変換して使う。
+ * 匿名参加・電話参加(signedinUserを持たない)は対象外。
+ * 入退室を複数回行った場合は、最初の入室〜最後の退室の幅になる。
  */
-function getMeetParticipantEmails(conferenceRecordName) {
+function getMeetParticipantSessions(conferenceRecordName) {
   if (!conferenceRecordName) return [];
   const url = `${MEET_API_BASE}/${conferenceRecordName}/participants`;
 
@@ -84,14 +86,25 @@ function getMeetParticipantEmails(conferenceRecordName) {
     const res = meetApiFetch(url, 'get');
     const participants = res.participants || [];
     return participants
-      .map(p => p.signedinUser && p.signedinUser.user)
-      .filter(Boolean)
-      .map(userRes => resolveUserEmail(userRes))
-      .filter(Boolean);
+      .filter(p => p.signedinUser && p.signedinUser.user && p.earliestStartTime && p.latestEndTime)
+      .map(p => ({
+        userResource: p.signedinUser.user,
+        start: new Date(p.earliestStartTime),
+        end: new Date(p.latestEndTime),
+      }));
   } catch (e) {
-    Logger.log(`Meet参加者取得に失敗しました: ${e}`);
+    Logger.log(`Meet参加ログの取得に失敗しました: ${e}`);
     return [];
   }
+}
+
+/**
+ * 実参加者のメールアドレス一覧を取得する(06_AttendanceAnalysis.gsで使用)。
+ */
+function getMeetParticipantEmails(conferenceRecordName) {
+  return getMeetParticipantSessions(conferenceRecordName)
+    .map(s => resolveUserEmail(s.userResource))
+    .filter(Boolean);
 }
 
 function meetApiFetch(url, method, payload) {

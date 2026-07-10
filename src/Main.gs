@@ -10,7 +10,8 @@ function onOpen() {
     .addItem('② 定期実行トリガーを設定', 'setupTriggers')
     .addSeparator()
     .addItem('会議を作成', 'createScheduledMeetings')
-    .addItem('打刻を実行', 'stampAllMeetingsStatus')
+    .addItem('ステータスを更新', 'advanceMeetingStatuses')
+    .addItem('実績打刻を実行(Meet参加ログ)', 'stampActualAttendanceForFinishedMeetings')
     .addItem('Chatへ投稿', 'postFinishedMeetingsToChat')
     .addItem('リアクションを収集', 'collectReactionsForPostedMessages')
     .addItem('参加率を分析', 'analyzeAttendance')
@@ -29,7 +30,8 @@ function setupTriggers() {
   deleteAllTriggers();
 
   ScriptApp.newTrigger('createScheduledMeetings').timeBased().everyMinutes(15).create();
-  ScriptApp.newTrigger('stampAllMeetingsStatus').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('advanceMeetingStatuses').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('stampActualAttendanceForFinishedMeetings').timeBased().everyMinutes(10).create();
   ScriptApp.newTrigger('postFinishedMeetingsToChat').timeBased().everyMinutes(10).create();
   ScriptApp.newTrigger('collectReactionsForPostedMessages').timeBased().everyHours(1).create();
   ScriptApp.newTrigger('analyzeAttendance').timeBased().everyHours(1).create();
@@ -43,7 +45,8 @@ function deleteAllTriggers() {
 
 function runFullPipeline() {
   createScheduledMeetings();
-  stampAllMeetingsStatus();
+  advanceMeetingStatuses();
+  stampActualAttendanceForFinishedMeetings();
   postFinishedMeetingsToChat();
   collectReactionsForPostedMessages();
   analyzeAttendance();

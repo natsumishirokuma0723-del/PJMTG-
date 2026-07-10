@@ -440,6 +440,31 @@ function stampEndForMembers(names) {
   return results;
 }
 
+// ─── 実績時間での打刻（開始・終了が両方確定しているケース）─────
+// Meetの参加ログ(入室〜退室時刻)など、開始・終了が同時に分かっている場合に
+// 1行にまとめて記録する。stampStartForMembers/stampEndForMembersと違い、
+// 「今」ではなく指定した開始・終了時刻をそのまま書き込む。
+function stampExactForMembers(entries) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const results = [];
+  entries.forEach(({ name, start, end }) => {
+    const memberSh = ss.getSheetByName(MEMBER_PREFIX + name);
+    if (!memberSh) { results.push(`❌ ${name}：シートが見つかりません`); return; }
+    const hours = (end - start) / 3600000;
+    const nextRow = memberSh.getLastRow() + 1;
+    memberSh.getRange(nextRow, COL_DATE).setValue(start).setNumberFormat("yyyy/MM/dd");
+    memberSh.getRange(nextRow, COL_START).setValue(start).setNumberFormat("HH:mm:ss");
+    memberSh.getRange(nextRow, COL_END).setValue(end).setNumberFormat("HH:mm:ss");
+    memberSh.getRange(nextRow, COL_HOURS).setValue(hours).setNumberFormat("0.00");
+    memberSh.getRange(nextRow, COL_MEMO).setValue("Meet参加ログ");
+    memberSh.getRange(nextRow, COL_MANUAL).setValue("");
+    memberSh.getRange(nextRow, 1, 1, 6).setBackground("#f8f9fa");
+    results.push(`✅ ${name}：${hours.toFixed(2)}h`);
+  });
+  refreshSummary();
+  return results;
+}
+
 // ─── 一括開始打刻（メニュー用・チェックボックス選択を使用）───
 function stampStartSelected() {
   const ui       = SpreadsheetApp.getUi();

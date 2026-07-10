@@ -13,7 +13,7 @@ function initializeSheets() {
   createSheetIfMissing(ss, SHEET_NAMES.SCHEDULE, [
     '会議名', '開始日時', '終了日時', '出席者(カンマ区切りメール)',
     '打刻対象メンバー(氏名カンマ区切り)',
-    '会議ID', '会議コード', '会議記録ID', 'MeetURL', 'ステータス',
+    '会議ID', '会議コード', '会議記録ID', 'MeetURL', 'ステータス', '実績打刻済み',
   ]);
 
   createSheetIfMissing(ss, SHEET_NAMES.CHAT_LOG, [
@@ -30,7 +30,7 @@ function initializeSheets() {
   ]);
 
   createSheetIfMissing(ss, SHEET_NAMES.USER_MAP, [
-    'ユーザーID(users/xxx)', 'メールアドレス',
+    'ユーザーID(users/xxx)', 'メールアドレス', '氏名(活動タイマー用)',
   ]);
 
   SpreadsheetApp.getUi().alert(
@@ -38,7 +38,10 @@ function initializeSheets() {
     '「設定」シートの「ChatスペースID」と「カレンダーID」を必ず設定してから、' +
     '「② 定期実行トリガーを設定」を実行してください。\n\n' +
     '※「会議予定」シートの「打刻対象メンバー(氏名カンマ区切り)」列には、' +
-    '⏱ 活動タイマー側の「メンバー_◯◯」シート名(氏名部分)と一致する名前を入力してください。'
+    '⏱ 活動タイマー側の「メンバー_◯◯」シート名(氏名部分)と一致する名前を入力してください。\n\n' +
+    '※実際の打刻は、Meetの参加ログに基づき会議終了後に自動で行われます。' +
+    '「ユーザーID対応表」シートに現れた未登録のGoogleアカウントには、' +
+    '氏名(活動タイマー用)の欄を入力してください。'
   );
 }
 
