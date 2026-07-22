@@ -3,7 +3,6 @@
  */
 const SHEET_NAMES = {
   CONFIG: '設定',
-  SCHEDULE: '会議予定',
   CHAT_LOG: 'Chat投稿ログ',
   REACTIONS: 'リアクション集計',
   ANALYSIS: '参加分析',

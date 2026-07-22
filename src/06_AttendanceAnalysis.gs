@@ -6,25 +6,21 @@
  * トリガー: 1時間おき(setupTriggers参照)
  */
 function analyzeAttendance() {
-  const scheduleSheet = getSheet(SHEET_NAMES.SCHEDULE);
-  const scheduleData = scheduleSheet.getDataRange().getValues();
-  if (scheduleData.length < 2) return;
-  const scheduleCol = colIndexMap(scheduleData[0]);
+  const pages = queryMeetingDatabase({
+    property: NOTION_PROPS.STATUS,
+    select: { equals: '投稿済み' },
+  });
 
   const reactionSheet = getSheet(SHEET_NAMES.REACTIONS);
   const reactionData = reactionSheet.getDataRange().getValues();
-
   const analysisSheet = getSheet(SHEET_NAMES.ANALYSIS);
 
-  for (let r = 1; r < scheduleData.length; r++) {
-    const row = scheduleData[r];
-    if (row[scheduleCol['ステータス']] !== '投稿済み') continue;
-
-    const eventId = row[scheduleCol['会議ID']];
-    const title = row[scheduleCol['会議名']];
-    const conferenceRecordName = row[scheduleCol['会議記録ID']];
-    const attendeesRaw = row[scheduleCol['出席者(カンマ区切りメール)']] || '';
-    const invitees = String(attendeesRaw).split(',').map(s => s.trim()).filter(Boolean);
+  pages.forEach(page => {
+    const eventId = notionRichText(page, NOTION_PROPS.EVENT_ID);
+    const title = notionTitleText(page, NOTION_PROPS.TITLE);
+    const conferenceRecordName = notionRichText(page, NOTION_PROPS.CONFERENCE_RECORD_ID);
+    const invitees = notionRichText(page, NOTION_PROPS.ATTENDEES)
+      .split(',').map(s => s.trim()).filter(Boolean);
 
     const reactedEmails = new Set(
       reactionData
@@ -54,8 +50,8 @@ function analyzeAttendance() {
       totalRead, readRate, notAttended.join(', '), notRead.join(', '), new Date(),
     ]);
 
-    scheduleSheet.getRange(r + 1, scheduleCol['ステータス'] + 1).setValue('分析済み');
-  }
+    updateMeetingPage(page.id, propSelect(NOTION_PROPS.STATUS, '分析済み'));
+  });
 }
 
 function getAcceptedFromCalendarEvent(eventId) {

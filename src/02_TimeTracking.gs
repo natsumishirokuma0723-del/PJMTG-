@@ -1,5 +1,5 @@
 /**
- * 会議のステータスを時刻に応じて進める(作成済み→開催中→終了)。
+ * Notion会議データベースのステータスを時刻に応じて進める(作成済み→開催中→終了)。
  * ここでは打刻は行わない。実際に参加した人だけを実績時間で打刻する処理は
  * 07_AttendanceStamping.gs の stampActualAttendanceForFinishedMeetings() が、
  * 会議終了後にMeetの参加ログを使って別途行う。
@@ -12,46 +12,40 @@ function advanceMeetingStatuses() {
 }
 
 function advanceCreatedToOngoing() {
-  const sheet = getSheet(SHEET_NAMES.SCHEDULE);
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return;
-  const col = colIndexMap(data[0]);
+  const pages = queryMeetingDatabase({
+    property: NOTION_PROPS.STATUS,
+    select: { equals: '作成済み' },
+  });
   const now = new Date();
 
-  for (let r = 1; r < data.length; r++) {
-    const row = data[r];
-    if (row[col['ステータス']] !== '作成済み') continue;
-
-    const start = new Date(row[col['開始日時']]);
-    if (now >= start) {
-      sheet.getRange(r + 1, col['ステータス'] + 1).setValue('開催中');
+  pages.forEach(page => {
+    const start = notionDate(page, NOTION_PROPS.START);
+    if (start && now >= start) {
+      updateMeetingPage(page.id, propSelect(NOTION_PROPS.STATUS, '開催中'));
     }
-  }
+  });
 }
 
 function advanceOngoingToFinished() {
-  const sheet = getSheet(SHEET_NAMES.SCHEDULE);
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return;
-  const col = colIndexMap(data[0]);
+  const pages = queryMeetingDatabase({
+    property: NOTION_PROPS.STATUS,
+    select: { equals: '開催中' },
+  });
   const now = new Date();
 
-  for (let r = 1; r < data.length; r++) {
-    const row = data[r];
-    if (row[col['ステータス']] !== '開催中') continue;
-
-    const end = new Date(row[col['終了日時']]);
-    if (now >= end) {
-      sheet.getRange(r + 1, col['ステータス'] + 1).setValue('終了');
+  pages.forEach(page => {
+    const end = notionDate(page, NOTION_PROPS.END);
+    if (end && now >= end) {
+      updateMeetingPage(page.id, propSelect(NOTION_PROPS.STATUS, '終了'));
     }
-  }
+  });
 }
 
 /**
- * 「会議予定」シートの行から、打刻対象メンバー(氏名)の配列を取り出す。
+ * Notionページから、打刻対象メンバー(氏名)の配列を取り出す。
  * 07_AttendanceStamping.gs でも使用する。
  */
-function getStampTargetMembers(row, col) {
-  const raw = row[col['打刻対象メンバー(氏名カンマ区切り)']] || '';
-  return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+function getStampTargetMembers(page) {
+  return notionRichText(page, NOTION_PROPS.STAMP_MEMBERS)
+    .split(',').map(s => s.trim()).filter(Boolean);
 }

@@ -12,25 +12,27 @@
  * 何もせず、次回実行時に自動的に再試行する。
  */
 function stampActualAttendanceForFinishedMeetings() {
-  const sheet = getSheet(SHEET_NAMES.SCHEDULE);
-  const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return;
-  const col = colIndexMap(data[0]);
+  const pages = queryMeetingDatabase({
+    and: [
+      { property: NOTION_PROPS.STAMPED, checkbox: { equals: false } },
+      {
+        or: [
+          { property: NOTION_PROPS.STATUS, select: { equals: '終了' } },
+          { property: NOTION_PROPS.STATUS, select: { equals: '投稿済み' } },
+          { property: NOTION_PROPS.STATUS, select: { equals: '分析済み' } },
+        ],
+      },
+    ],
+  });
 
-  for (let r = 1; r < data.length; r++) {
-    const row = data[r];
-    const status = row[col['ステータス']];
-    if (status !== '終了' && status !== '投稿済み' && status !== '分析済み') continue;
-    if (row[col['実績打刻済み']] === true) continue;
-
-    const title = row[col['会議名']];
-    const meetingCode = row[col['会議コード']];
-    const targetMembers = getStampTargetMembers(row, col);
-    const rowNum = r + 1;
+  pages.forEach(page => {
+    const title = notionTitleText(page, NOTION_PROPS.TITLE);
+    const meetingCode = notionRichText(page, NOTION_PROPS.MEETING_CODE);
+    const targetMembers = getStampTargetMembers(page);
 
     if (targetMembers.length === 0) {
-      sheet.getRange(rowNum, col['実績打刻済み'] + 1).setValue(true);
-      continue;
+      updateMeetingPage(page.id, propCheckbox(NOTION_PROPS.STAMPED, true));
+      return;
     }
 
     let record;
@@ -38,9 +40,9 @@ function stampActualAttendanceForFinishedMeetings() {
       record = getConferenceRecord(meetingCode);
     } catch (e) {
       Logger.log(`会議記録の取得に失敗しました(${title}): ${e}`);
-      continue;
+      return;
     }
-    if (!record) continue; // まだ会議記録が生成されていない。次回に再試行
+    if (!record) return; // まだ会議記録が生成されていない。次回に再試行
 
     const sessions = getMeetParticipantSessions(record.name);
     const entries = sessions
@@ -54,6 +56,6 @@ function stampActualAttendanceForFinishedMeetings() {
       Logger.log(`実績打刻(${title}): 参加ログと一致するメンバーがいませんでした`);
     }
 
-    sheet.getRange(rowNum, col['実績打刻済み'] + 1).setValue(true);
-  }
+    updateMeetingPage(page.id, propCheckbox(NOTION_PROPS.STAMPED, true));
+  });
 }
