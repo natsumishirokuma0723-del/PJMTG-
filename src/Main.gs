@@ -11,7 +11,7 @@ function onOpen() {
     .addSeparator()
     .addItem('会議を作成', 'createScheduledMeetings')
     .addItem('ステータスを更新', 'advanceMeetingStatuses')
-    .addItem('実績打刻を実行(Meet参加ログ)', 'stampActualAttendanceForFinishedMeetings')
+    .addItem('実績打刻+出席判定を実行(Meet参加ログ)', 'stampActualAttendanceForFinishedMeetings')
     .addItem('議事録をNotionに保存+Chatへ投稿', 'postFinishedMeetingsToChat')
     .addItem('リアクションを収集', 'collectReactionsForPostedMessages')
     .addItem('参加率を分析', 'analyzeAttendance')

@@ -1,5 +1,5 @@
 /**
- * 「投稿済み」の会議について、招待者・実参加者(Meet参加ログ)・
+ * 「投稿済み」の会議について、招待者(出席管理DBの行)・実参加者(Meet参加ログ)・
  * 既読者(リアクションを押した人)を突き合わせて出席率/既読率を算出し、
  * 「参加分析」シートに書き込む。
  *
@@ -7,7 +7,7 @@
  */
 function analyzeAttendance() {
   const pages = queryMeetingDatabase({
-    property: NOTION_PROPS.STATUS,
+    property: MEETING_PROPS.STATUS,
     select: { equals: '投稿済み' },
   });
 
@@ -16,11 +16,12 @@ function analyzeAttendance() {
   const analysisSheet = getSheet(SHEET_NAMES.ANALYSIS);
 
   pages.forEach(page => {
-    const eventId = notionRichText(page, NOTION_PROPS.EVENT_ID);
-    const title = notionTitleText(page, NOTION_PROPS.TITLE);
-    const conferenceRecordName = notionRichText(page, NOTION_PROPS.CONFERENCE_RECORD_ID);
-    const invitees = notionRichText(page, NOTION_PROPS.ATTENDEES)
-      .split(',').map(s => s.trim()).filter(Boolean);
+    const eventId = notionRichText(page, MEETING_PROPS.EVENT_ID);
+    const title = notionTitleText(page, MEETING_PROPS.TITLE);
+    const conferenceRecordName = notionRichText(page, MEETING_PROPS.CONFERENCE_RECORD_ID);
+
+    const attendanceRows = getAttendanceRowsForMeeting(page.id);
+    const invitees = attendanceRows.map(getAttendeeEmail).filter(Boolean);
 
     const reactedEmails = new Set(
       reactionData
@@ -50,7 +51,7 @@ function analyzeAttendance() {
       totalRead, readRate, notAttended.join(', '), notRead.join(', '), new Date(),
     ]);
 
-    updateMeetingPage(page.id, propSelect(NOTION_PROPS.STATUS, '分析済み'));
+    updatePage(page.id, propSelect(MEETING_PROPS.STATUS, '分析済み'));
   });
 }
 

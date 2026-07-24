@@ -1,7 +1,7 @@
 /**
  * 会議終了(ステータス=終了)した会議について、Meet APIで会議記録
  * (議事録=スマートノート/文字起こしDoc、録画)が揃い次第、
- * Notionページ(プロパティ+本文)に保存し、Google Chatにも投稿する。
+ * 議事録DBのページ(プロパティ+本文)に保存し、Google Chatにも投稿する。
  * まだ生成が完了していない場合は何もせず、次回のトリガー実行時に再試行する。
  *
  * トリガー: 10分おき(setupTriggers参照)
@@ -10,15 +10,15 @@ const CHAT_API_BASE = 'https://chat.googleapis.com/v1';
 
 function postFinishedMeetingsToChat() {
   const pages = queryMeetingDatabase({
-    property: NOTION_PROPS.STATUS,
+    property: MEETING_PROPS.STATUS,
     select: { equals: '終了' },
   });
   const chatLogSheet = getSheet(SHEET_NAMES.CHAT_LOG);
 
   pages.forEach(page => {
-    const eventId = notionRichText(page, NOTION_PROPS.EVENT_ID);
-    const title = notionTitleText(page, NOTION_PROPS.TITLE);
-    const meetingCode = notionRichText(page, NOTION_PROPS.MEETING_CODE);
+    const eventId = notionRichText(page, MEETING_PROPS.EVENT_ID);
+    const title = notionTitleText(page, MEETING_PROPS.TITLE);
+    const meetingCode = notionRichText(page, MEETING_PROPS.MEETING_CODE);
 
     let record;
     try {
@@ -42,13 +42,13 @@ function postFinishedMeetingsToChat() {
       return;
     }
 
-    // Notionページ側にも議事録・録画リンクを保存する(プロパティ + 本文)
-    updateMeetingPage(page.id, Object.assign(
+    // 議事録DBのページ側にも議事録・録画リンクを保存する(プロパティ + 本文)
+    updatePage(page.id, Object.assign(
       {},
-      propRichText(NOTION_PROPS.CONFERENCE_RECORD_ID, record.name),
-      propUrl(NOTION_PROPS.MINUTES_URL, transcriptUrl || ''),
-      propUrl(NOTION_PROPS.RECORDING_URL, recordingUrl || ''),
-      propSelect(NOTION_PROPS.STATUS, '投稿済み')
+      propRichText(MEETING_PROPS.CONFERENCE_RECORD_ID, record.name),
+      propUrl(MEETING_PROPS.MINUTES_URL, transcriptUrl || ''),
+      propUrl(MEETING_PROPS.RECORDING_URL, recordingUrl || ''),
+      propSelect(MEETING_PROPS.STATUS, '投稿済み')
     ));
     try {
       appendParagraphs(page.id, [
@@ -56,7 +56,7 @@ function postFinishedMeetingsToChat() {
         `録画: ${recordingUrl || '準備中'}`,
       ]);
     } catch (e) {
-      Logger.log(`Notionページへの本文追記に失敗しました(${title}): ${e}`);
+      Logger.log(`議事録DBページへの本文追記に失敗しました(${title}): ${e}`);
     }
 
     chatLogSheet.appendRow([eventId, posted.name, title, transcriptUrl, recordingUrl, new Date()]);

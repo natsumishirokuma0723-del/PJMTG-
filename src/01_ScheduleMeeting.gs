@@ -1,6 +1,7 @@
 /**
- * Notion会議データベースに登録された、まだ会議IDが空のページから
+ * 議事録DBに登録された、まだ会議IDが空で日付(開始・終了とも)が入っているページから
  * Google カレンダーの予定(Meet会議付き)を作成する。
+ * 出席者は、そのページに紐づく出席管理DBの行(の「メンバー」リレーション先のメールアドレス)から集める。
  * 作成と同時に自動録画・自動文字起こし・スマートノートをONにする。
  *
  * トリガー: 15分おき(setupTriggers参照)
@@ -8,22 +9,25 @@
 function createScheduledMeetings() {
   const pages = queryMeetingDatabase({
     and: [
-      { property: NOTION_PROPS.EVENT_ID, rich_text: { is_empty: true } },
-      { property: NOTION_PROPS.START, date: { is_not_empty: true } },
-      { property: NOTION_PROPS.END, date: { is_not_empty: true } },
+      { property: MEETING_PROPS.EVENT_ID, rich_text: { is_empty: true } },
+      { property: MEETING_PROPS.DATE, date: { is_not_empty: true } },
     ],
   });
 
   pages.forEach(page => {
-    const title = notionTitleText(page, NOTION_PROPS.TITLE);
-    const start = notionDate(page, NOTION_PROPS.START);
-    const end = notionDate(page, NOTION_PROPS.END);
-    const attendees = notionRichText(page, NOTION_PROPS.ATTENDEES)
-      .split(',').map(s => s.trim()).filter(Boolean);
+    const title = notionTitleText(page, MEETING_PROPS.TITLE);
+    const { start, end } = notionDateRange(page, MEETING_PROPS.DATE);
+    if (!start || !end || start.getTime() === end.getTime()) {
+      Logger.log(`「${title}」は開始/終了時刻が不足しているためスキップします。「日付」プロパティに終了日時まで入力してください。`);
+      return;
+    }
+
+    const attendanceRows = getAttendanceRowsForMeeting(page.id);
+    const attendeeEmails = attendanceRows.map(getAttendeeEmail).filter(Boolean);
 
     let event;
     try {
-      event = insertCalendarEventWithMeet(title, start, end, attendees);
+      event = insertCalendarEventWithMeet(title, start, end, attendeeEmails);
     } catch (e) {
       Logger.log(`会議作成に失敗しました(${title}): ${e}`);
       return;
@@ -40,12 +44,12 @@ function createScheduledMeetings() {
       }
     }
 
-    updateMeetingPage(page.id, Object.assign(
+    updatePage(page.id, Object.assign(
       {},
-      propRichText(NOTION_PROPS.EVENT_ID, event.id),
-      propRichText(NOTION_PROPS.MEETING_CODE, meetingCode || ''),
-      propUrl(NOTION_PROPS.MEET_URL, meetUrl || ''),
-      propSelect(NOTION_PROPS.STATUS, '作成済み')
+      propRichText(MEETING_PROPS.EVENT_ID, event.id),
+      propRichText(MEETING_PROPS.MEETING_CODE, meetingCode || ''),
+      propUrl(MEETING_PROPS.MEET_URL, meetUrl || ''),
+      propSelect(MEETING_PROPS.STATUS, '作成済み')
     ));
   });
 }
