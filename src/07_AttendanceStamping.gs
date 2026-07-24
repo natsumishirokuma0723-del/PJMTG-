@@ -53,11 +53,17 @@ function stampActualAttendanceForFinishedMeetings() {
       sessions.map(s => resolveUserEmail(s.userResource)).filter(Boolean)
     );
 
-    // (a) 活動タイマーへの実績打刻: 出席管理DBに載っている氏名と一致した人だけ
-    const targetNames = attendanceRows.map(getAttendeeName).filter(Boolean);
+    // メンバーマスタの情報(メールアドレス・計測ツール氏名)を行ごとに1回だけ取得しておく
+    const attendeeInfos = attendanceRows.map(row => Object.assign(
+      { row },
+      getAttendeeInfo(row)
+    ));
+
+    // (a) 活動タイマーへの実績打刻: 出席管理DBに載っている「計測ツール氏名」と一致した人だけ
+    const targetStampNames = attendeeInfos.map(a => a.stampName).filter(Boolean);
     const stampEntries = sessions
       .map(s => ({ name: resolveMemberName(s.userResource), start: s.start, end: s.end }))
-      .filter(s => s.name && targetNames.includes(s.name));
+      .filter(s => s.name && targetStampNames.includes(s.name));
 
     if (stampEntries.length > 0) {
       const results = stampExactForMembers(stampEntries);
@@ -65,8 +71,7 @@ function stampActualAttendanceForFinishedMeetings() {
     }
 
     // (b) 出席管理DBの各行に 出席/欠席 を反映
-    attendanceRows.forEach(row => {
-      const email = getAttendeeEmail(row);
+    attendeeInfos.forEach(({ row, email }) => {
       const attended = !!email && attendedEmails.has(email);
       try {
         updatePage(row.id, propSelect(ATTENDANCE_PROPS.STATUS, attended ? '出席' : '欠席'));

@@ -18,8 +18,11 @@
  *     (「出席(音声のみ)」の判定は行わない。既存の選択肢に残っていても未使用)
  *
  * ■ メンバーマスタDB(新規作成)
- *   プロパティ: 氏名(タイトル) / メールアドレス(Eメール型)
+ *   プロパティ: 氏名(タイトル) / メールアドレス(Eメール型) / 計測ツール氏名(テキスト)
  *   社内の人を一度だけ登録しておき、出席管理DBの「メンバー」から都度選ぶ運用にする。
+ *   「氏名」は表示用のフルネーム、「計測ツール氏名」は活動タイマー側の
+ *   「メンバー_◯◯」シート名と完全一致させる名前(名字のみの人がいるなど、
+ *   氏名とは表記が異なる場合があるため別プロパティにしている)。
  *
  * 事前準備:
  *  1. https://www.notion.so/my-integrations で内部インテグレーションを作成
@@ -55,6 +58,7 @@ const ATTENDANCE_PROPS = {
 const MEMBER_PROPS = {
   NAME: '氏名',
   EMAIL: 'メールアドレス',
+  STAMP_NAME: '計測ツール氏名',
 };
 
 function getNotionToken() {
@@ -227,22 +231,33 @@ function getAttendanceRowsForMeeting(meetingPageId) {
   });
 }
 
+/**
+ * 出席管理DBの行(1人分)における表示名(出席管理DB自体の「名前」列。ログ表示用)。
+ * 活動タイマーとの氏名照合には使わない(→ getAttendeeInfo().stampName を使う)。
+ */
 function getAttendeeName(attendanceRow) {
   return notionTitleText(attendanceRow, ATTENDANCE_PROPS.NAME);
 }
 
 /**
  * 出席管理DBの行(1人分)から、「メンバー」リレーション先(メンバーマスタDB)を
- * たどってメールアドレスを取得する。
+ * たどってメールアドレス・活動タイマー用氏名(計測ツール氏名)をまとめて取得する。
  */
-function getAttendeeEmail(attendanceRow) {
+function getAttendeeInfo(attendanceRow) {
   const memberIds = notionRelationIds(attendanceRow, ATTENDANCE_PROPS.MEMBER_RELATION);
-  if (memberIds.length === 0) return '';
+  if (memberIds.length === 0) return { email: '', stampName: '' };
   try {
     const memberPage = getPage(memberIds[0]);
-    return notionEmail(memberPage, MEMBER_PROPS.EMAIL);
+    return {
+      email: notionEmail(memberPage, MEMBER_PROPS.EMAIL),
+      stampName: notionRichText(memberPage, MEMBER_PROPS.STAMP_NAME),
+    };
   } catch (e) {
     Logger.log(`メンバー情報の取得に失敗しました: ${e}`);
-    return '';
+    return { email: '', stampName: '' };
   }
+}
+
+function getAttendeeEmail(attendanceRow) {
+  return getAttendeeInfo(attendanceRow).email;
 }
